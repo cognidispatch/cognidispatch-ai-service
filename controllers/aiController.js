@@ -9,7 +9,7 @@ router.get('/speech-token', (req, res) => {
   const region = process.env.AZURE_SPEECH_REGION;
   const key = process.env.AZURE_SPEECH_KEY;
 
-  const isMock = !region || !key || key.includes('your_azure') || key.includes('mock') || key.includes('REPLACE_WITH');
+  const isMock = process.env.MOCK_AI === 'true' || !region || !key || key.includes('your_azure') || key.includes('mock') || key.includes('REPLACE_WITH');
 
   if (isMock) {
     console.log("[RescuHome Speech] Azure Speech credentials missing or mock. Returning mock speech token.");
@@ -86,7 +86,7 @@ router.post('/triage', async (req, res) => {
   const apiKey = process.env.AZURE_OPENAI_KEY;
   const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
 
-  const isMock = !endpoint || !apiKey || !deployment || 
+  const isMock = process.env.MOCK_AI === 'true' || !endpoint || !apiKey || !deployment || 
                  apiKey.includes('your_azure') || apiKey.includes('mock') || 
                  endpoint.includes('your-resource');
 
@@ -262,7 +262,7 @@ router.post('/vision/analyze', async (req, res) => {
   const apiKey = process.env.AZURE_OPENAI_KEY;
   const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
 
-  const isMock = !endpoint || !apiKey || !deployment || 
+  const isMock = process.env.MOCK_AI === 'true' || !endpoint || !apiKey || !deployment || 
                  apiKey.includes('your_azure') || apiKey.includes('mock') || 
                  endpoint.includes('your-resource');
 
@@ -453,7 +453,7 @@ router.post('/live-assist', async (req, res) => {
   const apiKey = process.env.AZURE_OPENAI_KEY;
   const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
 
-  const isMock = !endpoint || !apiKey || !deployment || 
+  const isMock = process.env.MOCK_AI === 'true' || !endpoint || !apiKey || !deployment || 
                  apiKey.includes('your_azure') || apiKey.includes('mock') || 
                  endpoint.includes('your-resource');
 
