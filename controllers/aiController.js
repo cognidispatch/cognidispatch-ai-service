@@ -1,7 +1,7 @@
 const express = require('express');
 const dbAdapter = require('../shared').dbAdapter;
 const https = require('https');
-const { AzureOpenAI, OpenAIClient, AzureKeyCredential } = require('@azure/openai');
+const { AzureOpenAI } = require('openai');
 const router = express.Router();
 
 // Route 1: GET /api/speech-token
@@ -20,8 +20,24 @@ router.get('/speech-token', (req, res) => {
     });
   }
 
+  let hostname = `${region}.api.cognitive.microsoft.com`;
+  let speechEndpoint = process.env.AZURE_SPEECH_ENDPOINT;
+  if (!speechEndpoint && process.env.AZURE_OPENAI_ENDPOINT) {
+    speechEndpoint = process.env.AZURE_OPENAI_ENDPOINT
+      .replace('openai', 'speech')
+      .replace('openai.azure.com', 'cognitiveservices.azure.com');
+  }
+
+  if (speechEndpoint) {
+    try {
+      hostname = speechEndpoint.replace(/^https?:\/\//, '').split('/')[0];
+    } catch (e) {
+      console.error("Failed to parse Speech Endpoint, using fallback", e);
+    }
+  }
+
   const options = {
-    hostname: `${region}.api.cognitive.microsoft.com`,
+    hostname: hostname,
     path: '/sts/v1.0/issueToken',
     method: 'POST',
     headers: {
@@ -163,24 +179,12 @@ router.post('/triage', async (req, res) => {
   }
 
   try {
-    // Determine SDK client layout
-    let client;
-    let isLegacy = false;
-
-    // Check if standard AzureOpenAI class from newer SDK is available
-    if (typeof AzureOpenAI === 'function') {
-      client = new AzureOpenAI({
-        endpoint,
-        apiKey,
-        apiVersion: "2024-02-01",
-        deployment
-      });
-    } else {
-      // Fallback to OpenAIClient
-      const credential = new AzureKeyCredential(apiKey);
-      client = new OpenAIClient(endpoint, credential);
-      isLegacy = true;
-    }
+    const client = new AzureOpenAI({
+      endpoint,
+      apiKey,
+      apiVersion: "2024-06-01",
+      deployment
+    });
 
     const systemPrompt = `You are CogniDispatch's emergency triage AI. You analyze homeowner emergency descriptions and output ONLY a valid minified JSON object with NO markdown, NO code blocks, NO explanation, NO preamble. Your entire response must be parseable by JSON.parse() with zero pre-processing.
 
@@ -193,45 +197,15 @@ Output schema (strict):
   "mitigation_steps": array of 3-5 short imperative action strings the homeowner should take immediately before the technician arrives
 }`;
 
-    let rawText = '';
-
-    if (!isLegacy && client.chat && client.chat.completions) {
-      const response = await client.chat.completions.create({
-        model: deployment,
-        temperature: 0.1,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: transcription }
-        ]
-      });
-      rawText = response.choices[0].message.content;
-    } else {
-      // Use getChatCompletions (legacy or client structure match)
-      const targetMethod = client.getChatCompletions ? 'getChatCompletions' : (client.chat && client.chat.getCompletions ? 'chat.getCompletions' : null);
-      
-      let response;
-      if (client.getChatCompletions) {
-        response = await client.getChatCompletions(
-          deployment,
-          [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: transcription }
-          ],
-          { temperature: 0.1 }
-        );
-      } else {
-        // Ultimate fallback: assume modern openai shape if any
-        response = await client.chat.completions.create({
-          model: deployment,
-          temperature: 0.1,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: transcription }
-          ]
-        });
-      }
-      rawText = response.choices[0].message.content;
-    }
+    const response = await client.chat.completions.create({
+      model: deployment,
+      temperature: 0.1,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: transcription }
+      ]
+    });
+    const rawText = response.choices[0].message.content;
 
     let parsed;
     try {
@@ -376,22 +350,12 @@ router.post('/vision/analyze', async (req, res) => {
   }
 
   try {
-    // Determine SDK client layout
-    let client;
-    let isLegacy = false;
-
-    if (typeof AzureOpenAI === 'function') {
-      client = new AzureOpenAI({
-        endpoint,
-        apiKey,
-        apiVersion: "2024-02-01",
-        deployment
-      });
-    } else {
-      const credential = new AzureKeyCredential(apiKey);
-      client = new OpenAIClient(endpoint, credential);
-      isLegacy = true;
-    }
+    const client = new AzureOpenAI({
+      endpoint,
+      apiKey,
+      apiVersion: "2024-06-01",
+      deployment
+    });
 
     const systemPrompt = `You are CogniDispatch's visual emergency triage AI. You inspect homeowner-uploaded photos of structural, plumbing, electrical, or HVAC emergencies. 
 Analyze the image and output a valid JSON object matching this schema:
@@ -411,7 +375,6 @@ Analyze the image and output a valid JSON object matching this schema:
   ]
 }`;
 
-    let rawText = '';
     const userMessageContent = [
       {
         type: "text",
@@ -425,53 +388,15 @@ Analyze the image and output a valid JSON object matching this schema:
       }
     ];
 
-    if (!isLegacy && client.chat && client.chat.completions) {
-      const response = await client.chat.completions.create({
-        model: deployment,
-        temperature: 0.15,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessageContent }
-        ]
-      });
-      rawText = response.choices[0].message.content;
-    } else {
-      // Fallback for legacy SDK format (imageUrl vs image_url)
-      const legacyUserMessageContent = [
-        {
-          type: "text",
-          text: "Analyze this emergency photo and locate the damage with bounding boxes."
-        },
-        {
-          type: "image_url",
-          imageUrl: {
-            url: image
-          }
-        }
-      ];
-      
-      let response;
-      if (client.getChatCompletions) {
-        response = await client.getChatCompletions(
-          deployment,
-          [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: legacyUserMessageContent }
-          ],
-          { temperature: 0.15 }
-        );
-      } else {
-        response = await client.chat.completions.create({
-          model: deployment,
-          temperature: 0.15,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessageContent }
-          ]
-        });
-      }
-      rawText = response.choices[0].message.content;
-    }
+    const response = await client.chat.completions.create({
+      model: deployment,
+      temperature: 0.15,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessageContent }
+      ]
+    });
+    const rawText = response.choices[0].message.content;
 
     let triage;
     try {
@@ -576,21 +501,12 @@ router.post('/live-assist', async (req, res) => {
   }
 
   try {
-    let client;
-    let isLegacy = false;
-
-    if (typeof AzureOpenAI === 'function') {
-      client = new AzureOpenAI({
-        endpoint,
-        apiKey,
-        apiVersion: "2024-02-01",
-        deployment
-      });
-    } else {
-      const credential = new AzureKeyCredential(apiKey);
-      client = new OpenAIClient(endpoint, credential);
-      isLegacy = true;
-    }
+    const client = new AzureOpenAI({
+      endpoint,
+      apiKey,
+      apiVersion: "2024-06-01",
+      deployment
+    });
 
     const systemPrompt = `You are CogniDispatch's real-time emergency triage assistant. The user is sharing a live camera feed showing a disaster.
 Analyze the image frame and the user's transcript. Give urgent, supportive guidance telling them exactly what they see and what to do.
@@ -614,53 +530,15 @@ Output ONLY a valid minified JSON object matching this schema (do NOT wrap in co
       }
     ];
 
-    let rawText = '';
-    if (!isLegacy && client.chat && client.chat.completions) {
-      const response = await client.chat.completions.create({
-        model: deployment,
-        temperature: 0.1,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessageContent }
-        ]
-      });
-      rawText = response.choices[0].message.content;
-    } else {
-      const legacyUserMessageContent = [
-        {
-          type: "text",
-          text: `Live transcript of user: "${transcript || ''}"`
-        },
-        {
-          type: "image_url",
-          imageUrl: {
-            url: image
-          }
-        }
-      ];
-
-      let response;
-      if (client.getChatCompletions) {
-        response = await client.getChatCompletions(
-          deployment,
-          [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: legacyUserMessageContent }
-          ],
-          { temperature: 0.1 }
-        );
-      } else {
-        response = await client.chat.completions.create({
-          model: deployment,
-          temperature: 0.1,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessageContent }
-          ]
-        });
-      }
-      rawText = response.choices[0].message.content;
-    }
+    const response = await client.chat.completions.create({
+      model: deployment,
+      temperature: 0.1,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessageContent }
+      ]
+    });
+    const rawText = response.choices[0].message.content;
 
     let parsed;
     try {
