@@ -473,7 +473,17 @@ Analyze the image and output a valid JSON object matching this schema:
       rawText = response.choices[0].message.content;
     }
 
-    const triage = JSON.parse(rawText);
+    let triage;
+    try {
+      triage = JSON.parse(rawText);
+    } catch {
+      const match = rawText.match(/\{[\s\S]*\}/);
+      if (match) {
+        triage = JSON.parse(match[0]);
+      } else {
+        throw new Error("LLM vision response could not be parsed as JSON: " + rawText);
+      }
+    }
 
     // Ensure amount is dynamically appended
     triage.amount = calculateTriageAmount(triage.category, triage.urgency);
@@ -652,7 +662,17 @@ Output ONLY a valid minified JSON object matching this schema (do NOT wrap in co
       rawText = response.choices[0].message.content;
     }
 
-    let parsed = JSON.parse(rawText.trim());
+    let parsed;
+    try {
+      parsed = JSON.parse(rawText.trim());
+    } catch {
+      const match = rawText.match(/\{[\s\S]*\}/);
+      if (match) {
+        parsed = JSON.parse(match[0]);
+      } else {
+        throw new Error("Live assist response could not be parsed as JSON: " + rawText);
+      }
+    }
     return res.json({
       success: true,
       feedback: parsed.feedback,
