@@ -9,7 +9,15 @@ function hashPassword(password) {
 }
 
 // Check if we should use CosmosDB/MongoDB or fallback to mock files
-const MONGODB_URI = process.env.MONGODB_URI;
+let MONGODB_URI = process.env.MONGODB_URI;
+if (process.env.MONGODB_URI_FILE && fs.existsSync(process.env.MONGODB_URI_FILE)) {
+  try {
+    MONGODB_URI = fs.readFileSync(process.env.MONGODB_URI_FILE, 'utf8').trim();
+  } catch (err) {
+    console.error(`Failed to read MONGODB_URI from file ${process.env.MONGODB_URI_FILE}:`, err);
+  }
+}
+
 const isMockMode = !MONGODB_URI || 
                    MONGODB_URI.includes('<user>') || 
                    MONGODB_URI.includes('mock') || 

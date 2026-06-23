@@ -1,13 +1,21 @@
 const express = require('express');
 const dbAdapter = require('../shared').dbAdapter;
 const https = require('https');
+const fs = require('fs');
 const { AzureOpenAI } = require('openai');
 const router = express.Router();
 
 // Route 1: GET /api/speech-token
 router.get('/speech-token', (req, res) => {
   const region = process.env.AZURE_SPEECH_REGION;
-  const key = process.env.AZURE_SPEECH_KEY;
+  let key = process.env.AZURE_SPEECH_KEY;
+  if (process.env.AZURE_SPEECH_KEY_FILE && fs.existsSync(process.env.AZURE_SPEECH_KEY_FILE)) {
+    try {
+      key = fs.readFileSync(process.env.AZURE_SPEECH_KEY_FILE, 'utf8').trim();
+    } catch (err) {
+      console.error(`Failed to read AZURE_SPEECH_KEY from file ${process.env.AZURE_SPEECH_KEY_FILE}:`, err);
+    }
+  }
 
   const isMock = process.env.MOCK_AI === 'true' || !region || !key || key.includes('your_azure') || key.includes('mock') || key.includes('REPLACE_WITH');
 
@@ -83,7 +91,14 @@ router.post('/triage', async (req, res) => {
   }
 
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
-  const apiKey = process.env.AZURE_OPENAI_KEY;
+  let apiKey = process.env.AZURE_OPENAI_KEY;
+  if (process.env.AZURE_OPENAI_KEY_FILE && fs.existsSync(process.env.AZURE_OPENAI_KEY_FILE)) {
+    try {
+      apiKey = fs.readFileSync(process.env.AZURE_OPENAI_KEY_FILE, 'utf8').trim();
+    } catch (err) {
+      console.error(`Failed to read AZURE_OPENAI_KEY from file ${process.env.AZURE_OPENAI_KEY_FILE}:`, err);
+    }
+  }
   const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
 
   const isMock = process.env.MOCK_AI === 'true' || !endpoint || !apiKey || !deployment || 
@@ -259,7 +274,14 @@ router.post('/vision/analyze', async (req, res) => {
   }
 
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
-  const apiKey = process.env.AZURE_OPENAI_KEY;
+  let apiKey = process.env.AZURE_OPENAI_KEY;
+  if (process.env.AZURE_OPENAI_KEY_FILE && fs.existsSync(process.env.AZURE_OPENAI_KEY_FILE)) {
+    try {
+      apiKey = fs.readFileSync(process.env.AZURE_OPENAI_KEY_FILE, 'utf8').trim();
+    } catch (err) {
+      console.error(`Failed to read AZURE_OPENAI_KEY from file ${process.env.AZURE_OPENAI_KEY_FILE}:`, err);
+    }
+  }
   const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
 
   const isMock = process.env.MOCK_AI === 'true' || !endpoint || !apiKey || !deployment || 
@@ -450,7 +472,14 @@ router.post('/live-assist', async (req, res) => {
   }
 
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
-  const apiKey = process.env.AZURE_OPENAI_KEY;
+  let apiKey = process.env.AZURE_OPENAI_KEY;
+  if (process.env.AZURE_OPENAI_KEY_FILE && fs.existsSync(process.env.AZURE_OPENAI_KEY_FILE)) {
+    try {
+      apiKey = fs.readFileSync(process.env.AZURE_OPENAI_KEY_FILE, 'utf8').trim();
+    } catch (err) {
+      console.error(`Failed to read AZURE_OPENAI_KEY from file ${process.env.AZURE_OPENAI_KEY_FILE}:`, err);
+    }
+  }
   const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
 
   const isMock = process.env.MOCK_AI === 'true' || !endpoint || !apiKey || !deployment || 
