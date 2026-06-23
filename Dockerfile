@@ -1,4 +1,4 @@
-﻿# ──────────────────────────────────────────────────
+# ──────────────────────────────────────────────────
 # CogniDispatch Backend Microservice — Multi-Stage Dockerfile
 # ──────────────────────────────────────────────────
 
@@ -25,7 +25,7 @@ WORKDIR /app
 RUN apk update && apk upgrade --no-cache
 
 ENV NODE_ENV=production
-ENV PORT=5000
+ENV PORT=5003
 
 # Copy shared library and service from builder
 COPY --from=builder /app/shared /app/shared
@@ -38,6 +38,6 @@ RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 # Use non-root user for security
 USER node
 
-EXPOSE 5000
+EXPOSE 5003
 
 CMD ["node", "server.js"]

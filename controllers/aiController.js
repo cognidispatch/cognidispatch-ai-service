@@ -17,7 +17,7 @@ router.get('/speech-token', (req, res) => {
     }
   }
 
-  const isMock = process.env.MOCK_AI === 'true' || !region || !key || key.includes('your_azure') || key.includes('mock') || key.includes('REPLACE_WITH');
+  const isMock = process.env.MOCK_AI === 'true' || !region || !key || key.includes('your_azure') || key.includes('mock') || key.includes('REPLACE_WITH') || key === 'keyvault-managed';
 
   if (isMock) {
     console.log("[RescuHome Speech] Azure Speech credentials missing or mock. Returning mock speech token.");
@@ -103,7 +103,7 @@ router.post('/triage', async (req, res) => {
 
   const isMock = process.env.MOCK_AI === 'true' || !endpoint || !apiKey || !deployment || 
                  apiKey.includes('your_azure') || apiKey.includes('mock') || 
-                 endpoint.includes('your-resource');
+                 endpoint.includes('your-resource') || apiKey === 'keyvault-managed';
 
   // Helper to calculate Indian Rupees service fee estimates
   function calculateTriageAmount(category, urgency) {
@@ -286,7 +286,7 @@ router.post('/vision/analyze', async (req, res) => {
 
   const isMock = process.env.MOCK_AI === 'true' || !endpoint || !apiKey || !deployment || 
                  apiKey.includes('your_azure') || apiKey.includes('mock') || 
-                 endpoint.includes('your-resource');
+                 endpoint.includes('your-resource') || apiKey === 'keyvault-managed';
 
   if (isMock) {
     console.log(`[CogniDispatch Vision] Running in OFFLINE DEMO MODE for image analysis.`);
@@ -484,7 +484,7 @@ router.post('/live-assist', async (req, res) => {
 
   const isMock = process.env.MOCK_AI === 'true' || !endpoint || !apiKey || !deployment || 
                  apiKey.includes('your_azure') || apiKey.includes('mock') || 
-                 endpoint.includes('your-resource');
+                 endpoint.includes('your-resource') || apiKey === 'keyvault-managed';
 
   if (isMock) {
     // High-fidelity mock analysis of live frame
