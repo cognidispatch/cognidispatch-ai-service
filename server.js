@@ -16,3 +16,4 @@ const PORT = process.env.PORT || 5003;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`AI Service listening on port ${PORT}`);
 });
+// Test Slack notification integration - fix v2
